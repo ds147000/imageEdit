@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="../dist/index.css">
+    <style>
+        #box{
+            width: 450px;
+            height: 700px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <script src="../dist/image-edit.min.js"></script>
+    <div id="box">
+
+    </div>
+    <script>
+        var imgaeEdit = new ImageEdit('#box')
+        imgaeEdit.enterImage('http://t9.baidu.com/it/u=583874135,70653437&fm=79&app=86&f=JPEG?w=3607&h=2408')
+    </script>
+</body>
+</html>
