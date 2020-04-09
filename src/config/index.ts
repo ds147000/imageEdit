@@ -2,6 +2,8 @@ export const APP_CONFIG: appConfig = {
     width: 0,
     height: 0,
     output: 'base64',
+    putImageType: 'image/png',
+    quality: 1,
     cWidth: null,
     cHeight: null,
     cut: true,

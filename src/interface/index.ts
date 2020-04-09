@@ -9,7 +9,9 @@ interface appConfig {
     spin: Boolean, // 是否开启旋转
     zoom: Boolean, // 是否开启缩放
     move: Boolean, // 是否开启移动
-    control: Boolean
+    control: Boolean,
+    putImageType: string,
+    quality: number
 }
 
 // 编辑框参数

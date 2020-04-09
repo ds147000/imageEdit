@@ -7,7 +7,7 @@
 export const getPosition = (x: number, y:number, x2: number, y2:number) => {
     let ix = Math.abs(x2 - x)
     let iy = Math.abs(y2 - y)
-    return ix < 10 && iy < 10
+    return ix < 25 && iy < 25
 }
 
 export const getMove = (event: MouseEvent, oldEvent: MouseEvent) => {

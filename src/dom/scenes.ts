@@ -13,6 +13,8 @@ class Scenes {
 
     private oldEvent: MouseEvent
 
+    private oldTouchs: TouchList
+
     private cutSize: cutSize //剪切框配置
 
     private imageSize: imageSize = { x: 0, y: 0, width: 0, height: 0, zoom: 1, rotate: 0 } //背景图配置
@@ -21,11 +23,17 @@ class Scenes {
 
     private imageBitmap: ImageBitmap | HTMLImageElement //图片资源
 
-    private scale: number //图片与画布的比例参考数
+    private scale: number //画布与实际div比例
 
     private downType: number // 0= 剪切框，1背景图, null离开
 
     private cutNumber: number //操作的剪切点
+
+    /**失败回调 */
+    onError: Function = err => {}
+    
+    /**成功回调 */
+    onSuccess: Function = res => {}
 
     constructor(private config: appConfig) {
         
@@ -49,6 +57,14 @@ class Scenes {
     private initControl() {
         if (this.config.control) //开启控制器
             this.control = new control(this.config)
+            this.control.setZoom = this.setZoom.bind(this)
+            this.control.setSpin = this.setSpin.bind(this)
+            this.control.onError = () => {
+                this.clear()
+                this.onError.bind(this)  
+            }
+            this.control.onSuccess = this.onOk.bind(this)
+
             this.$el.append(this.control.$el)
     }
 
@@ -56,7 +72,7 @@ class Scenes {
         const canvas = document.createElement('canvas')
         canvas.setAttribute('class', APP_CANVAS_1)
         this.$el.append(canvas)
-        
+
         canvas.width = this.config.cWidth
         canvas.height = this.config.cHeight
         this.ctx = canvas.getContext('2d')
@@ -70,12 +86,17 @@ class Scenes {
             
             canvas.width = this.config.cWidth
             canvas.height = this.config.cHeight
+            this.scale = this.config.cWidth / this.config.width
             this.coverCtx = canvas.getContext('2d')
 
             canvas.addEventListener('mousedown', this.onMouseDown.bind(this))
             canvas.addEventListener('mousemove', this.onMouseMove.bind(this))
             canvas.addEventListener('mouseup', this.onMouseUp.bind(this))
+            canvas.addEventListener('wheel', this.onWheel.bind(this))
 
+            canvas.addEventListener('touchstart', this.onTouchStart.bind(this))
+            canvas.addEventListener('touchmove', this.onTouchMove.bind(this))
+            canvas.addEventListener('touchend', this.onTouchEnd.bind(this))
         }
     }
 
@@ -91,11 +112,45 @@ class Scenes {
         // else // 操作类型为背景图
         else if (this.downType === 1) {
             const { x, y } = getMove(event, this.oldEvent)
-            this.moveImage(this.oldImageSize.x + x, this.oldImageSize.y + y)
+            this.moveImage(this.oldImageSize.x + x * this.scale, this.oldImageSize.y + y * this.scale)
         }
     }
 
     onMouseUp(event: MouseEvent) {
+        this.downType = null
+    }
+
+    onWheel(event: WheelEvent) {
+        this.setZoom(this.imageSize.zoom + (event.deltaY * 0.001))
+    }
+
+    onTouchStart(event: TouchEvent) {
+
+        const touch: Touch = event.touches[0]
+        this.isDownType(touch.pageX, touch.pageY)
+        this.oldTouchs = event.touches
+        this.oldImageSize = Object.assign({}, this.imageSize)
+    }
+
+    onTouchMove(event: TouchEvent) {
+        if (event.touches.length === 1) 
+            this.onTouchMoveImage(event.touches[0])
+        else 
+            this.onTouchEnd()
+    }
+
+    onTouchMoveImage(event: Touch) {
+        if (this.downType === 0) 
+            this.changeCut(event.pageX, event.pageY)
+        else if (this.downType === 1) {
+            const oldEvent = { offsetX: this.oldTouchs[0].pageX, offsetY: this.oldTouchs[0].pageY }
+            const { x, y } = getMove({ offsetX: event.pageX, offsetY: event.pageY } as MouseEvent, oldEvent as MouseEvent)
+            
+            this.moveImage(this.oldImageSize.x + x * this.scale, this.oldImageSize.y + y * this.scale)
+        }
+    }
+
+    onTouchEnd() {
         this.downType = null
     }
     /**
@@ -131,6 +186,8 @@ class Scenes {
      * @param y 
      */
     changeCut(x: number, y:number) {
+        x *= this.scale
+        y *= this.scale
         switch(this.cutNumber) {
             case 0:
                 this.setCutSize(x, y, this.cutSize.x - x + this.cutSize.width, this.cutSize.y - y + this.cutSize.height)
@@ -146,7 +203,6 @@ class Scenes {
             break
         }
     }
-
     /**初始化剪切框 */
     initCutSize() {
         const cutSize = (this.config.cWidth < this.config.cHeight ? this.config.cWidth : this.config.cHeight) * 0.7
@@ -159,8 +215,14 @@ class Scenes {
     }
     // 设置剪切框大小
     setCutSize(x: number, y: number, width: number, height: number) {
-        width = width < 50 ? 50 : width
-        height = height < 50 ? 50 : height
+        if (width < 50) {
+            x = this.cutSize.x
+            width = 50
+        }
+        if (height < 50) {
+            y = this.cutSize.y
+            height = 50
+        }
         this.cutSize = {
             x,
             y,
@@ -221,6 +283,58 @@ class Scenes {
         this.imageSize.y = y
         this.resDrwaImage()
     }
+    /**缩放背景图 */
+    setZoom(value: number) {
+        this.imageSize.zoom = value
+        this.resDrwaImage()
+    }
+    // 旋转背景
+    setSpin(value: number) {
+        this.setRoate(value * 360 - 360)
+    }
+    setRoate(rotate: number) {
+        this.imageSize.rotate = rotate
+        this.resDrwaImage()
+    }
+    /**重绘图像 */
+    private resDrwaImage() {
+        // 重置h画布
+        this.clear()
+        // 配置
+        if (this.imageSize.zoom !== 1 || this.imageSize.rotate !== 0) { // 存在旋转和放大
+
+            const imageRadiusWideh = this.imageSize.width / 2
+            const imageRadiusHeight = this.imageSize.height / 2
+            const imageMoveX = this.imageSize.x
+            const imageMoveY = this.imageSize.y
+
+            // 位移居中
+            this.ctx.translate(imageMoveX, imageMoveY)
+            // 设置中心点
+            this.ctx.translate(imageRadiusWideh, imageRadiusHeight)
+            // 旋转
+            this.ctx.rotate(this.imageSize.rotate * Math.PI / 180)
+            // 放大
+            this.ctx.scale(this.imageSize.zoom, this.imageSize.zoom)
+            // 恢复中心点
+            this.ctx.translate(-imageRadiusWideh, -imageRadiusHeight)
+
+            // 渲染
+            this.ctx.drawImage(this.imageBitmap, 0, 0, this.imageSize.width, this.imageSize.height)
+        
+        } else {
+            this.ctx.drawImage(this.imageBitmap, this.imageSize.x, this.imageSize.y, this.imageSize.width, this.imageSize.height)
+        }
+    }
+    /**重置 */
+    restart() {
+        this.getImageSize(this.imageBitmap)
+        this.resDrwaImage()
+    }
+    clear() {
+        this.ctx.resetTransform()
+        this.ctx.clearRect(0, 0, this.config.cWidth, this.config.cHeight)
+    }
 
     enterImage(file: string | Blob) {
         if (typeof file === 'string' && /^(\.\/)|^(\.\.\/)|^(\/)/.test(file))
@@ -258,23 +372,65 @@ class Scenes {
     drwaImage(img: HTMLImageElement | ImageBitmap) {
         this.imageBitmap = img
         this.getImageSize(img)
+        this.ctx.resetTransform()
         this.ctx.drawImage(this.imageBitmap, this.imageSize.x, this.imageSize.y, this.imageSize.width, this.imageSize.height)
     }
-
-    resDrwaImage() {
-        this.ctx.clearRect(0, 0, this.config.cWidth, this.config.cHeight)
-        this.ctx.drawImage(this.imageBitmap, this.imageSize.x, this.imageSize.y, this.imageSize.width, this.imageSize.height)
-    }
-
-    getImageSize(img: HTMLImageElement | ImageBitmap) {
-        this.scale = this.config.cWidth / img.width
-        this.imageSize.width = img.width * this.scale
-        this.imageSize.height = img.height * this.scale
+    /**计算图片宽高与垂直距离 */
+    private getImageSize(img: HTMLImageElement | ImageBitmap) {
+        const scale = this.config.cWidth / img.width
+        this.imageSize.width = img.width * scale
+        this.imageSize.height = img.height * scale
         this.imageSize.x = 0
         this.imageSize.y = (this.config.cHeight - this.imageSize.height) / 2
         this.imageSize.zoom = 1
         this.imageSize.rotate = 0
     }
+    /**获取base64 */
+    getDataURL() {
+        let ImageData = this.ctx.getImageData(this.cutSize.x, this.cutSize.y, this.cutSize.width, this.cutSize.height)
+        let canvas = document.createElement('canvas')
+        canvas.width = ImageData.width
+        canvas.height = ImageData.height
+
+        let ctx = canvas.getContext('2d')
+        ctx.putImageData(ImageData, 0, 0)
+        const result = canvas.toDataURL(this.config.putImageType, this.config.quality)
+
+        ctx = null
+        canvas = null
+        ImageData = null
+
+        return result
+    }
+    /**获取Bolb类型 */
+    getBolb(callbak) {
+        let ImageData = this.ctx.getImageData(this.cutSize.x, this.cutSize.y, this.cutSize.width, this.cutSize.height)
+        let canvas = document.createElement('canvas')
+        canvas.width = ImageData.width
+        canvas.height = ImageData.height
+
+        let ctx = canvas.getContext('2d')
+        ctx.putImageData(ImageData, 0, 0)
+        
+        canvas.toBlob((res) => {
+            ctx = null
+            canvas = null
+            ImageData = null
+            callbak(res)
+        }, this.config.putImageType, this.config.quality)
+    }
+    // 完成
+    onOk() {
+        switch(this.config.output) {
+            case 'base64':
+                this.onSuccess(this.getDataURL())      
+            break
+            case 'bolb':
+                this.getBolb(result => this.onSuccess(result))
+            break
+        }
+    }
+
 }
 
 export {

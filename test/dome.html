@@ -19,8 +19,14 @@
 
     </div>
     <script>
-        var imgaeEdit = new ImageEdit('#box')
-        imgaeEdit.enterImage('http://t9.baidu.com/it/u=583874135,70653437&fm=79&app=86&f=JPEG?w=3607&h=2408')
+        var app = new ImageEdit('#box', { cWidth: 900, cHeight: 1400 })
+        app.enterImage('http://t9.baidu.com/it/u=583874135,70653437&fm=79&app=86&f=JPEG?w=3607&h=2408')
+        app.onSuccess = function(res) {
+            console.log(res)
+        }
+        app.onError = function(err) {
+            console.error(err)
+        }
     </script>
 </body>
 </html>
