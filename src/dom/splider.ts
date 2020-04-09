@@ -29,6 +29,10 @@ class zoom{
         this.$el.addEventListener('mousemove', this.onMouseMove.bind(this))
         this.$el.addEventListener('mouseup', this.onMouseUp.bind(this))
         this.$el.addEventListener('mouseout', this.onMouseUp.bind(this))
+
+        this.$el.addEventListener('touchstart', this.onTouchStart.bind(this))
+        this.$el.addEventListener('touchmove', this.onTouchMove.bind(this))
+        this.$el.addEventListener('touchend', this.onTouchEnd.bind(this))
     }
 
     private onMouseDown(e: MouseEvent) {
@@ -53,6 +57,36 @@ class zoom{
     }
 
     private onMouseUp() {
+        this.operating = false
+        this.timeCap = setTimeout(() => {
+            this.hide()
+        }, 3000)
+    }
+
+    private onTouchStart(e: TouchEvent) {
+        this.operating = true
+
+        const width = this.$el.offsetWidth / 2
+        const touch = e.touches[0]
+        const x = touch.pageX - width
+        this.changeSlider(width + x)
+        this.changeValue(x / width)
+    }
+
+    private onTouchMove(e: TouchEvent) {
+        if (this.operating === false) {
+            return
+        }
+
+        const width = this.$el.offsetWidth / 2
+        const touch = e.touches[0]
+        const x = touch.pageX - width
+        this.changeSlider(width + x)
+        this.changeValue(x / width)
+
+    }
+
+    private onTouchEnd(e: TouchEvent) {
         this.operating = false
         this.timeCap = setTimeout(() => {
             this.hide()

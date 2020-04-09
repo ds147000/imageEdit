@@ -86,6 +86,10 @@
     display: none;
 }
 
+.image-edit-js .control .zoom-control:last-child{
+    top: -80px;
+}
+
 .image-edit-js .control .zoom-control::after{
     content: "";
     position: absolute;
