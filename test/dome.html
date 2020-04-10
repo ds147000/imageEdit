@@ -6,10 +6,19 @@
     <title>Document</title>
     <link rel="stylesheet" href="../dist/index.css">
     <style>
+        *{
+            padding: 0px;
+            margin: 0px;
+        }
+        body,html{
+            width: 100%;
+            height: 100%;
+        }
         #box{
-            width: 450px;
-            height: 700px;
-            border: 1px solid black;
+            width: 100%;
+            height: 100%;
+            max-width: 414px;
+            max-height: 736px;
         }
     </style>
 </head>
@@ -19,8 +28,8 @@
 
     </div>
     <script>
-        var app = new ImageEdit('#box', { cWidth: 900, cHeight: 1400 })
-        app.enterImage('http://t9.baidu.com/it/u=583874135,70653437&fm=79&app=86&f=JPEG?w=3607&h=2408')
+        var app = new ImageEdit('#box', { cWidth: 828, cHeight: 1472 })
+        app.enterImage('../dist/123456.jpg')
         app.onSuccess = function(res) {
             console.log(res)
         }

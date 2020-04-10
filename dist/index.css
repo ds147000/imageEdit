@@ -4,6 +4,7 @@
     position: relative;
     padding: 0px;
     margin: 0px;
+    user-select: none;
 }
 .image-edit-js .image{
     width: 100%;
@@ -15,6 +16,7 @@
     background-color: rgba(0, 0, 0, 1);
     padding: 0px;
     margin: 0px;
+    user-select: none;
 }
 .image-edit-js .cover{
     width: 100%;
@@ -26,7 +28,27 @@
     background-color: rgba(0, 0, 0, 0);
     padding: 0px;
     margin: 0px;
+    user-select: none;
 }
+.image-edit-js .tips{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    animation: tipsShow .5s;
+    z-index: 12;
+    color: #ffffff;
+    font-weight: 400;
+    background-color: rgba(0,0,0,0.7);
+    text-align: center;
+    line-height: 50px;
+    font-size: 12px;
+}
+
 .image-edit-js .control{
     width: 100%;
     color: #ffffff;
@@ -43,13 +65,16 @@
     justify-content:space-around;
     box-sizing: border-box;
     cursor: pointer;
+    user-select: none;
 }
 
 .image-edit-js .control .icon{
     display: flex;
+    user-select: none;
 }
 
 .image-edit-js .control .spin {
+    user-select: none;
     margin-right: 10px;
     width: 30px;
     height: 30px;
@@ -59,6 +84,7 @@
 }
 
 .image-edit-js .control .zoom {
+    user-select: none;
     width: 30px;
     height: 30px;
     display: block;
@@ -84,6 +110,7 @@
     animation: show .8s;
     cursor: default;
     display: none;
+    user-select: none;
 }
 
 .image-edit-js .control .zoom-control:last-child{
@@ -100,6 +127,7 @@
     background-color: #7a7a7a;
     border: 0px;
     transform: translateY(-50%);
+    user-select: none;
 }
 .image-edit-js .control .zoom-control .slider{
     width: 4px;
@@ -112,6 +140,7 @@
     z-index: 5;
     cursor: pointer;
     box-shadow: -1px 0px 3px rgba(0,0,0,.7);
+    user-select: none;
 }
 
 .image-edit-js .control .zoom-control .slider-back{
@@ -123,6 +152,7 @@
     left: 0px;
     transform: translateY(-50%);
     z-index: 4;
+    user-select: none;
 }
 
 .mask{
@@ -131,6 +161,7 @@
     height: 100%;
     z-index: 10;
     cursor: pointer;
+    user-select: none;
 }
 
 @keyframes show {
@@ -141,5 +172,14 @@
     100% {
         opacity: 1;
         transform: translateY(0%);
+    }
+}
+
+@keyframes tipsShow {
+    0%{
+        opacity: 0;
+    }
+    100%{
+        opacity: 1;
     }
 }

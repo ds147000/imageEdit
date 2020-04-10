@@ -1,9 +1,13 @@
 import { APP_BOX, APP_CANVAS_1, APP_CANVAS_2 } from '../config/index'
 import { control } from './control'
-import { getPosition, getMove }  from '../libs/index'
+import { getPosition, getMove, getConterXY, getDistance }  from '../libs/index'
 
 class Scenes {
-    public $el: HTMLElement //节点
+    $el: HTMLElement //节点
+
+    $tips: HTMLElement
+
+    private tipsCal: any
 
     private ctx: CanvasRenderingContext2D
 
@@ -25,6 +29,8 @@ class Scenes {
 
     private scale: number //画布与实际div比例
 
+    private custCenter: Array<number> = [] // 自定义中心点
+
     private downType: number // 0= 剪切框，1背景图, null离开
 
     private cutNumber: number //操作的剪切点
@@ -36,18 +42,22 @@ class Scenes {
     onSuccess: Function = res => {}
 
     constructor(private config: appConfig) {
-        
-        let box = document.createElement('div')
 
-        this.$el = box
+        this.$el = document.createElement('div')
+
+        this.$tips = document.createElement('dvi')
 
         this.init()
     }
 
     private init() {
+
         this.$el.setAttribute('class', APP_BOX)
         this.$el.style.width = this.config.width + 'px'
         this.$el.style.height = this.config.height + 'px'
+        this.$tips.setAttribute('class', 'tips')
+        this.$el.append(this.$tips)
+
         this.initCutSize()
         this.initImageCanvas()
         this.initCoverCanvas()
@@ -57,11 +67,17 @@ class Scenes {
     private initControl() {
         if (this.config.control) //开启控制器
             this.control = new control(this.config)
-            this.control.setZoom = this.setZoom.bind(this)
-            this.control.setSpin = this.setSpin.bind(this)
+            this.control.setZoom = value => {
+                this.custCenter = []
+                this.setZoom(value)
+            }
+            this.control.setSpin = value => {
+                this.custCenter = []
+                this.setSpin(value)
+            }
             this.control.onError = () => {
                 this.clear()
-                this.onError.bind(this)  
+                this.onError()
             }
             this.control.onSuccess = this.onOk.bind(this)
 
@@ -118,6 +134,7 @@ class Scenes {
 
     onMouseUp(event: MouseEvent) {
         this.downType = null
+        this.custCenter = []
     }
 
     onWheel(event: WheelEvent) {
@@ -125,29 +142,59 @@ class Scenes {
     }
 
     onTouchStart(event: TouchEvent) {
-
+        const topY = this.$el.getClientRects()[0].top
         const touch: Touch = event.touches[0]
-        this.isDownType(touch.pageX, touch.pageY)
+        this.isDownType(touch.pageX, touch.pageY - topY)
         this.oldTouchs = event.touches
         this.oldImageSize = Object.assign({}, this.imageSize)
     }
 
     onTouchMove(event: TouchEvent) {
+        event.preventDefault()
         if (event.touches.length === 1) 
             this.onTouchMoveImage(event.touches[0])
         else 
-            this.onTouchEnd()
+            this.onTouchScale(event.touches)
     }
 
     onTouchMoveImage(event: Touch) {
+        const topY = this.$el.getClientRects()[0].top
+
         if (this.downType === 0) 
-            this.changeCut(event.pageX, event.pageY)
+            this.changeCut(event.pageX, event.pageY - topY)
+
         else if (this.downType === 1) {
-            const oldEvent = { offsetX: this.oldTouchs[0].pageX, offsetY: this.oldTouchs[0].pageY }
-            const { x, y } = getMove({ offsetX: event.pageX, offsetY: event.pageY } as MouseEvent, oldEvent as MouseEvent)
+            const nowEvent = { offsetX: event.pageX, offsetY: event.pageY - topY }
+            const oldEvent = { offsetX: this.oldTouchs[0].pageX, offsetY: this.oldTouchs[0].pageY - topY }
+            const { x, y } = getMove(nowEvent as MouseEvent, oldEvent as MouseEvent)
             
             this.moveImage(this.oldImageSize.x + x * this.scale, this.oldImageSize.y + y * this.scale)
         }
+    }
+
+    onTouchScale(event: TouchList) {
+        const topY = this.$el.getClientRects()[0].top
+        
+        // 获取中心点
+        const touch_1: Touch = this.oldTouchs[0]
+        const touch_2: Touch = this.oldTouchs[1]
+        const new_touch_1: Touch = event[0]
+        const new_touch_2: Touch = event[1]
+
+        const { x, y } = getConterXY(
+                                        touch_1.pageX,
+                                        touch_1.pageY - topY,
+                                        touch_2.pageX,
+                                        touch_2.pageY - topY
+                                    )
+
+        this.custCenter = [ x * this.scale - this.oldImageSize.x / this.oldImageSize.zoom, y * this.scale - this.oldImageSize.y / this.oldImageSize.zoom ]
+        
+        // 获取缩放比例
+        const oldDistance = getDistance(touch_1.pageX, touch_1.pageY - topY, touch_2.pageX, touch_2.pageY - topY)
+        const newDistance = getDistance(new_touch_1.pageX, new_touch_1.pageY - topY, new_touch_2.pageX, new_touch_2.pageY - topY)
+
+        this.setZoom(this.oldImageSize.zoom * newDistance / oldDistance)
     }
 
     onTouchEnd() {
@@ -287,12 +334,14 @@ class Scenes {
     setZoom(value: number) {
         this.imageSize.zoom = value
         this.resDrwaImage()
+        this.showTips(`${(value * 100).toFixed(0)}%`)
     }
     // 旋转背景
     setSpin(value: number) {
         this.setRoate(value * 360 - 360)
     }
     setRoate(rotate: number) {
+        this.showTips(`${(rotate).toFixed(1)}%`)
         this.imageSize.rotate = rotate
         this.resDrwaImage()
     }
@@ -303,12 +352,12 @@ class Scenes {
         // 配置
         if (this.imageSize.zoom !== 1 || this.imageSize.rotate !== 0) { // 存在旋转和放大
 
-            const imageRadiusWideh = this.imageSize.width / 2
-            const imageRadiusHeight = this.imageSize.height / 2
+            const imageRadiusWideh = this.custCenter.length > 0 ? this.custCenter[0] : this.imageSize.width / 2
+            const imageRadiusHeight = this.custCenter.length > 0 ? this.custCenter[1] : this.imageSize.height / 2
             const imageMoveX = this.imageSize.x
             const imageMoveY = this.imageSize.y
 
-            // 位移居中
+            // 位移操作点
             this.ctx.translate(imageMoveX, imageMoveY)
             // 设置中心点
             this.ctx.translate(imageRadiusWideh, imageRadiusHeight)
@@ -325,6 +374,16 @@ class Scenes {
         } else {
             this.ctx.drawImage(this.imageBitmap, this.imageSize.x, this.imageSize.y, this.imageSize.width, this.imageSize.height)
         }
+    }
+    /**显示提示 */
+    private showTips(str: string) {
+        clearTimeout(this.tipsCal)
+        this.$tips.innerText = str
+        this.$tips.style.display = 'block'
+
+        this.tipsCal = setTimeout(() => {
+            this.$tips.style.display = 'none'
+        }, 1500)
     }
     /**重置 */
     restart() {
@@ -353,7 +412,7 @@ class Scenes {
         img.crossOrigin = "Anonymous"
 
         img.onload = () => {
-            if (createImageBitmap) {
+            if (window.createImageBitmap) {
                 createImageBitmap(img)
                     .then(res => {
                         this.drwaImage(res)
