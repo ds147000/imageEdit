@@ -1,6 +1,6 @@
-import process from 'process'
 import { join } from 'path'
 import resolve from 'rollup-plugin-node-resolve';
+import commonjs from 'rollup-plugin-commonjs';
 import pluginTypescript from 'rollup-plugin-typescript2'
 
 // rollup.config.js
@@ -15,6 +15,7 @@ export default {
     },
     plugins: [
         resolve(),
+        commonjs(),
         pluginTypescript()
     ],
 };

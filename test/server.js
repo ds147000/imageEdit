@@ -19,6 +19,6 @@ const server = http.createServer((req, res) => {
     }))
 })
 
-server.listen(8083,'192.168.1.7', () => {
+server.listen(8083,'127.0.0.1', () => {
     console.log('启动成功')
 })

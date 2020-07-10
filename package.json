@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:cjs": "type=cjs rollup -c",
-    "build:iife": "type=iife rollup -c"
+    "build:cjs": "set type=cjs&&rollup -c",
+    "build:iife": "set type=iife&&rollup -c"
   },
   "repository": {
     "type": "git",
